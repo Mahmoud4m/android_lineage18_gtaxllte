@@ -46,7 +46,7 @@ jobs:
           mka bacon -j4
 
       - name: Upload output
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lineage18_gtaxllte_build
           path: lineage/out/target/product/gtaxllte/*.zip
