@@ -17,6 +17,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: recursive
+        fetch-depth: 0  # جلب كامل الكود لتجنب missing files
 
     - name: Set up 32-bit architecture and repositories
       run: |
@@ -39,6 +40,14 @@ jobs:
       run: |
         curl -s https://storage.googleapis.com/git-repo-downloads/repo -o /usr/local/bin/repo
         sudo chmod a+x /usr/local/bin/repo
+
+    - name: Verify envsetup.sh exists
+      run: |
+        if [ ! -f build/envsetup.sh ]; then
+          echo "Error: build/envsetup.sh not found!"
+          ls -R build
+          exit 1
+        fi
 
     - name: Initialize build environment
       run: |
