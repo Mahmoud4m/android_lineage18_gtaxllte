@@ -13,18 +13,21 @@ jobs:
       TZ: UTC
 
     steps:
-    - name: Checkout source
+    # 1️⃣ جلب المستودع الحالي
+    - name: Checkout workflow repo
       uses: actions/checkout@v4
       with:
         submodules: recursive
-        fetch-depth: 0  # جلب كامل الكود لتجنب missing files
+        fetch-depth: 0
 
+    # 2️⃣ تثبيت دعم 32-bit ومستودعات universe
     - name: Set up 32-bit architecture and repositories
       run: |
         sudo dpkg --add-architecture i386
         sudo add-apt-repository -y universe
         sudo apt-get update
 
+    # 3️⃣ تثبيت الحزم المطلوبة للبناء
     - name: Install build dependencies
       run: |
         sudo apt-get install -y --no-install-recommends \
@@ -36,33 +39,49 @@ jobs:
           pngcrush rsync schedtool squashfs-tools xsltproc zip unzip \
           python3-dev python3-setuptools
 
+    # 4️⃣ تثبيت أداة repo
     - name: Install repo tool
       run: |
         curl -s https://storage.googleapis.com/git-repo-downloads/repo -o /usr/local/bin/repo
         sudo chmod a+x /usr/local/bin/repo
 
+    # 5️⃣ جلب الكود الكامل لـ LineageOS 18.1
+    - name: Initialize repo and sync LineageOS 18
+      run: |
+        mkdir -p ~/android/lineage18
+        cd ~/android/lineage18
+        repo init -u https://github.com/LineageOS/android.git -b lineage-18.1
+        repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags
+
+    # 6️⃣ التحقق من وجود envsetup.sh
     - name: Verify envsetup.sh exists
       run: |
+        cd ~/android/lineage18
         if [ ! -f build/envsetup.sh ]; then
           echo "Error: build/envsetup.sh not found!"
           ls -R build
           exit 1
         fi
 
+    # 7️⃣ تهيئة بيئة البناء
     - name: Initialize build environment
       run: |
+        cd ~/android/lineage18
         source build/envsetup.sh
         lunch lineage_gtaxllte-userdebug
 
+    # 8️⃣ بدء عملية البناء
     - name: Start optimized build
       run: |
+        cd ~/android/lineage18
         export JOBS=$(nproc --all)
         export RAM_LIMIT=3000  # MB
         make -j$JOBS 2>&1 | tee build.log
 
+    # 9️⃣ رفع ملفات الروم النهائية
     - name: Upload build artifacts
       if: success()
       uses: actions/upload-artifact@v4
       with:
         name: lineage_gtaxllte_build
-        path: out/target/product/gtaxllte/*.zip
+        path: ~/android/lineage18/out/target/product/gtaxllte/*.zip
