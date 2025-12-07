@@ -1,0 +1,52 @@
+name: Build LineageOS 18.1 for gtaxllte
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install build dependencies
+        run: |
+          sudo apt update
+          sudo apt install bc bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev libfontconfig1 libfreetype6 liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop openjdk-8-jdk python3 rsync schedtool squashfs-tools xsltproc zip zlib1g-dev -y
+
+      - name: Prepare repo tool
+        run: |
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          echo 'PATH=~/bin:$PATH' >> ~/.bashrc
+
+      - name: Sync LineageOS source
+        run: |
+          source ~/.bashrc
+          mkdir lineage
+          cd lineage
+          repo init -u https://github.com/LineageOS/android.git -b lineage-18.1
+          repo sync -j4
+
+      - name: Clone gtaxllte device tree
+        run: |
+          cd lineage
+          git clone https://github.com/Exynos7870/android_device_samsung_gtaxllte device/samsung/gtaxllte
+          git clone https://github.com/Exynos7870/android_kernel_samsung_exynos7870 kernel/samsung/exynos7870
+          git clone https://github.com/Exynos7870/android_vendor_samsung_gtaxllte vendor/samsung/gtaxllte
+
+      - name: Build LineageOS
+        run: |
+          cd lineage
+          source build/envsetup.sh
+          lunch lineage_gtaxllte-userdebug
+          mka bacon -j4
+
+      - name: Upload output
+        uses: actions/upload-artifact@v3
+        with:
+          name: lineage18_gtaxllte_build
+          path: lineage/out/target/product/gtaxllte/*.zip
